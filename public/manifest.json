@@ -1,0 +1,27 @@
+{
+  "name": "Word Sanctuary - First Time Guest",
+  "short_name": "Word Sanctuary",
+  "description": "Welcome form for first-time guests at Word Sanctuary - A Church Like Heaven",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#7c3aed",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/word-sanctuary-logo-black.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/word-sanctuary-logo-black.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "social"],
+  "lang": "en",
+  "dir": "ltr"
+}
