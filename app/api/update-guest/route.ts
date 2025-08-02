@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
     const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
 
     const response = await fetch(
-      "https://script.google.com/macros/s/AKfycbwJHpkySwOHnEh1dTxGxfMC0OpJrR1Lm5ocb3GhcZV-ixjHOwb7T4LvGl6QevMqSHCA3w/exec",
-      {
+      "https://script.google.com/macros/s/AKfycbzQooq3FHk7t6AEPzepqUHkSU2usrsBwzWBkuiT4ohF3ULhWehvNOroVIE8XbnfPUmk/exec",
+      {  
         method: "POST",
         headers: {
           "Content-Type": "application/json",
