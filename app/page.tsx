@@ -346,8 +346,8 @@ export default function WelcomePage() {
                       <SelectItem value="married" className="text-gray-900 hover:bg-blue-50 py-2 font-medium">
                         Married
                       </SelectItem>
-                      <SelectItem value="prefer-not-to-say" className="text-gray-900 hover:bg-blue-50 py-2 font-medium">
-                        Prefer not to say
+                      <SelectItem value="others" className="text-gray-900 hover:bg-blue-50 py-2 font-medium">
+                        Others
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -660,7 +660,7 @@ export default function WelcomePage() {
         <div className="mt-8 text-center">
           <p className="text-xs text-blue-500 mb-2">
             <a href="/minister" className="hover:text-blue-700 underline transition-colors duration-200">
-              Attending Minister Portal Access
+              @2025 WORD SANCTUARY
             </a>
           </p>
         </div>

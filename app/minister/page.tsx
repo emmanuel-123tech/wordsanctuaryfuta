@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +22,6 @@ import {
   ChevronDown,
   Mail,
   Briefcase,
-  Loader2,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -51,18 +50,12 @@ interface Guest {
   status: string
 }
 
-// Cache for guests data
-let guestsCache: Guest[] | null = null
-let cacheTimestamp = 0
-const CACHE_DURATION = 30000 // 30 seconds
-
 export default function MinisterPortal() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [guests, setGuests] = useState<Guest[]>([])
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   const [showGuestDetails, setShowGuestDetails] = useState(false)
   const [formData, setFormData] = useState({
     guestId: "",
@@ -77,116 +70,44 @@ export default function MinisterPortal() {
     ministerComment: "",
   })
 
-  // Memoized pending guests for better performance
-  const pendingGuests = useMemo(() => {
-    return guests.filter((guest) => guest.status === "Pending Minister Follow-up")
-  }, [guests])
+  useEffect(() => {
+    fetchGuests()
+  }, [])
 
-  const fetchGuests = useCallback(async (forceRefresh = false) => {
-    const now = Date.now()
-
-    // Use cache if available and not expired (unless force refresh)
-    if (!forceRefresh && guestsCache && now - cacheTimestamp < CACHE_DURATION) {
-      setGuests(guestsCache)
-      setIsInitialLoad(false)
-      return
-    }
-
+  const fetchGuests = async () => {
     try {
       setIsLoading(true)
-
-      // Create AbortController for request timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
-
-      const response = await fetch("/api/get-guests", {
-        signal: controller.signal,
-        headers: {
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
-      })
-
-      clearTimeout(timeoutId)
-
+      const response = await fetch("/api/get-guests")
       if (response.ok) {
         const guestData = await response.json()
-
-        // Update cache
-        guestsCache = guestData
-        cacheTimestamp = now
-
         setGuests(guestData)
-      } else {
-        throw new Error(`HTTP ${response.status}`)
       }
     } catch (error) {
       console.error("Error fetching guests:", error)
-
-      // Use cached data as fallback if available
-      if (guestsCache) {
-        setGuests(guestsCache)
-        console.log("Using cached guest data as fallback")
-      } else {
-        // Show mock data for development/testing
-        const mockGuests = [
-          {
-            id: "mock-1",
-            fullName: "Sample Guest (Demo)",
-            email: "demo@example.com",
-            phoneNumber: "+1234567890",
-            whatsappNumber: "+1234567890",
-            profession: "Student",
-            birthday: "January 15",
-            invitedBy: "John Doe",
-            howDidYouHear: "friend",
-            gender: "male",
-            maritalStatus: "single",
-            houseAddress: "123 Demo Street",
-            officeAddress: "",
-            bestReachMethod: "whatsapp",
-            joinChurch: "yes",
-            joinDepartment: "yes",
-            selectedDepartment: "media",
-            blessings: "Word, Worship",
-            submissionDate: new Date().toISOString(),
-            status: "Pending Minister Follow-up",
-          },
-        ]
-        setGuests(mockGuests)
-      }
     } finally {
       setIsLoading(false)
-      setIsInitialLoad(false)
     }
-  }, [])
+  }
 
-  useEffect(() => {
-    fetchGuests()
-  }, [fetchGuests])
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
 
-  const handleInputChange = useCallback(
-    (field: string, value: string) => {
-      setFormData((prev) => ({ ...prev, [field]: value }))
-
-      if (field === "guestId") {
-        const guest = guests.find((g) => g.id === value)
-        setSelectedGuest(guest || null)
-        if (guest) {
-          setShowGuestDetails(true)
-        }
+    if (field === "guestId") {
+      const guest = guests.find((g) => g.id === value)
+      setSelectedGuest(guest || null)
+      if (guest) {
+        setShowGuestDetails(true)
       }
+    }
 
-      if (field === "department" && value !== "others") {
-        setFormData((prev) => ({ ...prev, customDepartment: "" }))
-      }
+    if (field === "department" && value !== "others") {
+      setFormData((prev) => ({ ...prev, customDepartment: "" }))
+    }
 
-      if (field === "serviceDay" && value !== "others") {
-        setFormData((prev) => ({ ...prev, customServiceDay: "" }))
-      }
-    },
-    [guests],
-  )
+    if (field === "serviceDay" && value !== "others") {
+      setFormData((prev) => ({ ...prev, customServiceDay: "" }))
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -194,21 +115,14 @@ export default function MinisterPortal() {
 
     setIsSubmitting(true)
 
-    // Show success immediately for better UX
     setTimeout(() => {
       setIsSubmitted(true)
-      // Invalidate cache to force refresh on next load
-      guestsCache = null
-      cacheTimestamp = 0
-    }, 600)
+      fetchGuests()
+    }, 800)
 
     try {
       const finalDepartment = formData.department === "others" ? formData.customDepartment : formData.department
       const finalServiceDay = formData.serviceDay === "others" ? formData.customServiceDay : formData.serviceDay
-
-      // Submit in background with shorter timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
 
       const submitPromise = fetch("/api/update-guest", {
         method: "POST",
@@ -224,20 +138,11 @@ export default function MinisterPortal() {
           },
           status: "Completed",
         }),
-        signal: controller.signal,
       })
 
-      submitPromise
-        .then(() => {
-          clearTimeout(timeoutId)
-          // Invalidate cache after successful submission
-          guestsCache = null
-          cacheTimestamp = 0
-        })
-        .catch((error) => {
-          clearTimeout(timeoutId)
-          console.error("Background submission error:", error)
-        })
+      submitPromise.catch((error) => {
+        console.error("Background submission error:", error)
+      })
     } catch (error) {
       console.error("Error submitting minister data:", error)
       setIsSubmitting(false)
@@ -246,7 +151,7 @@ export default function MinisterPortal() {
     }
   }
 
-  const resetForm = useCallback(() => {
+  const resetForm = () => {
     setIsSubmitted(false)
     setSelectedGuest(null)
     setShowGuestDetails(false)
@@ -262,9 +167,9 @@ export default function MinisterPortal() {
       hodInCharge: "",
       ministerComment: "",
     })
-  }, [])
+  }
 
-  const getDepartmentOptions = useMemo(() => {
+  const getDepartmentOptions = () => {
     const standardDepartments = [
       { value: "media", label: "Media" },
       { value: "choir", label: "Choir" },
@@ -295,11 +200,7 @@ export default function MinisterPortal() {
     }
 
     return [...standardDepartments, { value: "others", label: "Others (Specify)" }]
-  }, [selectedGuest])
-
-  const handleRefresh = useCallback(() => {
-    fetchGuests(true) // Force refresh
-  }, [fetchGuests])
+  }
 
   if (isSubmitted) {
     return (
@@ -347,19 +248,14 @@ export default function MinisterPortal() {
               </div>
             </div>
             <Button
-              onClick={handleRefresh}
+              onClick={fetchGuests}
               variant="outline"
               size="sm"
-              disabled={isLoading}
               className="flex items-center space-x-1 sm:space-x-2 bg-transparent text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
             >
-              {isLoading ? (
-                <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
-              )}
-              <span className="hidden sm:inline">{isLoading ? "Loading..." : "Refresh"}</span>
-              <span className="sm:hidden">{isLoading ? "..." : "↻"}</span>
+              <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Refresh</span>
+              <span className="sm:hidden">↻</span>
             </Button>
           </div>
         </div>
@@ -382,28 +278,22 @@ export default function MinisterPortal() {
               <div className="space-y-4">
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-3 block">Guest Name</Label>
-
-                  {isInitialLoad ? (
-                    // Initial loading skeleton
-                    <div className="h-12 sm:h-14 border-2 border-gray-200 rounded-lg bg-gray-100 animate-pulse flex items-center px-4">
-                      <Loader2 className="h-4 w-4 animate-spin text-gray-400 mr-2" />
-                      <span className="text-gray-400 text-sm">Loading guests...</span>
-                    </div>
-                  ) : (
-                    <Select
-                      value={formData.guestId}
-                      onValueChange={(value) => handleInputChange("guestId", value)}
-                      disabled={isLoading}
-                    >
-                      <SelectTrigger className="h-12 sm:h-14 border-2 border-gray-300 focus:border-blue-500 bg-white text-gray-900 font-medium text-sm sm:text-base rounded-lg">
-                        <SelectValue
-                          placeholder={isLoading ? "Refreshing..." : "👆 Tap here to select a guest"}
-                          className="text-gray-900 font-medium"
-                        />
-                        <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 opacity-75 ml-2" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border-2 border-gray-200 shadow-xl rounded-lg max-h-60 sm:max-h-80">
-                        {pendingGuests.map((guest) => (
+                  <Select
+                    value={formData.guestId}
+                    onValueChange={(value) => handleInputChange("guestId", value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className="h-12 sm:h-14 border-2 border-gray-300 focus:border-blue-500 bg-white text-gray-900 font-medium text-sm sm:text-base rounded-lg">
+                      <SelectValue
+                        placeholder={isLoading ? "Loading guests..." : "👆 Tap here to select a guest"}
+                        className="text-gray-900 font-medium"
+                      />
+                      <ChevronDown className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 opacity-75 ml-2" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-2 border-gray-200 shadow-xl rounded-lg max-h-60 sm:max-h-80">
+                      {guests
+                        .filter((guest) => guest.status === "Pending Minister Follow-up")
+                        .map((guest) => (
                           <SelectItem
                             key={guest.id}
                             value={guest.id}
@@ -422,29 +312,20 @@ export default function MinisterPortal() {
                             </div>
                           </SelectItem>
                         ))}
-                        {pendingGuests.length === 0 && !isLoading && (
-                          <SelectItem
-                            value="no-guests"
-                            disabled
-                            className="text-gray-500 py-4 px-4 text-sm sm:text-base"
-                          >
-                            No pending guests found
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
+                      {guests.filter((guest) => guest.status === "Pending Minister Follow-up").length === 0 && (
+                        <SelectItem value="no-guests" disabled className="text-gray-500 py-4 px-4 text-sm sm:text-base">
+                          No pending guests found
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {!isInitialLoad && (
+                {guests.length > 0 && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-                    <p className="text-xs sm:text-sm text-blue-700 font-medium flex items-center space-x-2">
-                      <span>📊 {pendingGuests.length} guests pending follow-up</span>
-                      {guestsCache && (
-                        <span className="text-blue-500 text-xs">
-                          (Cached {Math.round((Date.now() - cacheTimestamp) / 1000)}s ago)
-                        </span>
-                      )}
+                    <p className="text-xs sm:text-sm text-blue-700 font-medium">
+                      📊 {guests.filter((guest) => guest.status === "Pending Minister Follow-up").length} guests pending
+                      follow-up
                     </p>
                   </div>
                 )}
@@ -711,7 +592,7 @@ export default function MinisterPortal() {
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-2 border-gray-200 shadow-lg rounded-lg max-h-60">
-                        {getDepartmentOptions.map((dept) => (
+                        {getDepartmentOptions().map((dept) => (
                           <SelectItem key={dept.value} value={dept.value} className="py-2 sm:py-3 text-sm sm:text-base">
                             {dept.label}
                           </SelectItem>
@@ -773,7 +654,7 @@ export default function MinisterPortal() {
                   >
                     {isSubmitting ? (
                       <div className="flex items-center space-x-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         <span>Saving...</span>
                       </div>
                     ) : (
